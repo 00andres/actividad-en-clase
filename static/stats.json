@@ -1,0 +1,21 @@
+{
+  "totalEpisodes": 1078,
+  "averageRating": 8.03,
+  "highestRated": {
+    "episode": 278,
+    "title": "Ikitai to Ie! Oretachi wa Nakama Da!!",
+    "plot": "Since she was 8, Robin's life has been a constant struggle to survive. Everybody has told her that her existence was a crime, and now Luffy begs her to stay alive.",
+    "releaseDate": "Sun, Sep 24, 2006",
+    "releaseYear": 2006,
+    "rating": 9.6
+  },
+  "lowestRated": {
+    "episode": 336,
+    "title": "Shutsudou Chopperman! Mamore Nagisa no TV-kyoku",
+    "plot": "The adventures of Chopperman the hero and his battle against evil Usodabada.",
+    "releaseDate": "Sun, Dec 23, 2007",
+    "releaseYear": 2007,
+    "rating": 5.2
+  },
+  "yearsSpan": "1999 - 2023"
+}

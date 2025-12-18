@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>One Piece — Visual Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* =========================================
+       1. VARIABLES Y TEMA (Colores Neón/Glass)
+       ========================================= */
+    :root {
+      --bg-dark: #050b14;
+      --bg-card: rgba(20, 30, 45, 0.65);
+      --bg-card-hover: rgba(30, 45, 65, 0.75);
+      --text-main: #eef6ff;
+      --text-muted: #94a6b8;
+      --accent: #ff9e1b; /* Color Naranja One Piece */
+      --accent-glow: rgba(255, 158, 27, 0.4);
+      --glass-border: 1px solid rgba(255, 160, 30, 0.15);
+      --shadow-accent: 0 8px 24px rgba(255, 158, 27, 0.15);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at top center, #0f2035 0%, #050b14 60%);
+      color: var(--text-main);
+      scroll-behavior: smooth;
+    }
+
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* =========================================
+       2. ANIMACIONES CSS (La base del efecto)
+       ========================================= */
+    /* Estado INICIAL (Invisible y desplazado hacia abajo) */
+    .reveal-section {
+      opacity: 0;
+      transform: translateY(60px) scale(0.95); 
+      transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    /* Estado FINAL (Visible y en su sitio) 
+       Esta clase se añade con JS cuando entra en pantalla */
+    .reveal-section.visible { 
+      opacity: 1; 
+      transform: translateY(0) scale(1); 
+    }
+
+    /* --- HEADER --- */
+    header { text-align: center; padding: 60px 20px 40px; margin-bottom: 20px; }
+    .brand { font-weight: 900; color: var(--accent); font-size: 64px; letter-spacing: 1.5px; margin: 0; text-transform: uppercase; text-shadow: 0 0 30px var(--accent-glow); display: inline-block; position: relative; }
+    .sub { color: var(--text-muted); font-size: 18px; margin-top: 10px; }
+
+    /* --- NAVEGACIÓN STICKY --- */
+    .nav-container { position: sticky; top: 20px; z-index: 100; display: flex; justify-content: center; margin-bottom: 60px; pointer-events: none; }
+    .pills { display: flex; gap: 8px; padding: 8px; background: rgba(5, 11, 20, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-radius: 99px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); pointer-events: auto; }
+    .pill { padding: 10px 20px; border-radius: 99px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 700; font-size: 12px; transition: all .3s ease; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pill:hover { color: #fff; background: rgba(255,255,255,0.05); }
+
+    /* --- SECCIONES --- */
+    section { margin-bottom: 120px; scroll-margin-top: 100px; }
+    .section-title { font-size: 32px; font-weight: 800; color: #fff; text-align: center; margin-bottom: 15px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .section-title span { color: var(--accent); }
+    .chart-desc { text-align: center; color: var(--text-muted); font-size: 16px; margin: 0 auto 40px; max-width: 700px; line-height: 1.6; }
+
+    /* --- STATS --- */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 80px; }
+    .stat { background: var(--bg-card); border: var(--glass-border); padding: 24px; border-radius: 16px; text-align: center; position: relative; overflow: hidden; }
+    .stat .v { font-weight: 900; font-size: 38px; color: #fff; margin-bottom: 5px; }
+    .stat .label { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; }
+
+    /* --- CARDS --- */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+    .card { background: var(--bg-card); border: var(--glass-border); padding: 24px; border-radius: 16px; display: flex; flex-direction: column; transition: transform 0.3s, border-color 0.3s; }
+    .card:hover { transform: translateY(-5px) !important; border-color: var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .ep-number { font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
+    .ep-title { font-size: 17px; font-weight: 800; color: #fff; margin-bottom: 10px; line-height: 1.4; }
+    .ep-plot { font-size: 13px; color: var(--text-muted); line-height: 1.6; flex-grow: 1; margin-bottom: 15px; }
+    .badge-row { display: flex; justify-content: flex-end; }
+    .badge { background: rgba(255, 158, 27, 0.15); color: var(--accent); border: 1px solid rgba(255, 158, 27, 0.3); padding: 6px 12px; border-radius: 8px; font-weight: 700; font-size: 13px; }
+
+    /* --- CHART CONTAINERS --- */
+    .chart-container { background: rgba(10, 15, 25, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 30px; box-shadow: inset 0 0 50px rgba(0,0,0,0.3); }
+    #rating-chart, #timeline-chart { height: 450px; width: 100%; }
+
+    /* --- CONTROLES --- */
+    .filters-bar { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+    select, input { background: #0a121e; border: 1px solid #2a3b55; color: #fff; padding: 10px 16px; border-radius: 8px; font-family: inherit; font-size: 14px; outline: none; }
+    input:focus, select:focus { border-color: var(--accent); }
+
+    /* --- D3 STYLES --- */
+    .grid-line { stroke: rgba(255,255,255,0.05); stroke-dasharray: 4; }
+    .axis text { fill: var(--text-muted); font-family: 'Inter'; font-size: 11px; }
+    .axis path, .axis line { display: none; }
+    
+    /* Tooltip */
+    .tooltip { position: fixed; display: none; padding: 12px 16px; background: rgba(15, 20, 30, 0.98); border: 1px solid var(--accent); border-radius: 8px; color: #fff; font-size: 13px; pointer-events: none; z-index: 9999; box-shadow: 0 10px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px); }
+
+    @media (max-width: 768px) {
+      .brand { font-size: 42px; }
+      .pills { overflow-x: auto; max-width: 90%; justify-content: flex-start; }
+      .pill { white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="tooltip" class="tooltip"></div>
+
+  <div class="wrap">
+    
+    <header class="reveal-section">
+      <div class="brand">ONE PIECE</div>
+      <div class="sub">Una travesía visual a través de 1078 episodios</div>
+    </header>
+
+    <div class="nav-container reveal-section">
+      <div class="pills">
+        <button class="pill" onclick="scrollToId('sec-intro')">Inicio</button>
+        <button class="pill" onclick="scrollToId('sec-top')">Top 20</button>
+        <button class="pill" onclick="scrollToId('sec-timeline')">Historia</button>
+        <button class="pill" onclick="scrollToId('sec-ratings')">Ratings</button>
+        <button class="pill" onclick="scrollToId('sec-worst')">Caídas</button>
+        <button class="pill" onclick="scrollToId('sec-explorer')">Explorador</button>
+      </div>
+    </div>
+
+    <section id="sec-intro" class="reveal-section">
+      <div class="stats">
+        <div class="stat"><div class="v" id="stat-total">—</div><div class="label">Total Episodios</div></div>
+        <div class="stat"><div class="v" id="stat-avg">—</div><div class="label">Promedio Global</div></div>
+        <div class="stat"><div class="v" id="stat-max">—</div><div class="label">Rating Máximo</div></div>
+        <div class="stat"><div class="v" id="stat-range">—</div><div class="label">Años de Emisión</div></div>
+      </div>
+    </section>
+
+    <section id="sec-top" class="reveal-section">
+      <div class="section-title">✨ Momentos <span>Legendarios</span></div>
+      <div class="chart-desc">
+        Estos episodios representan la cúspide narrativa de Eiichiro Oda. Aquí encontrarás los clímax emocionales de arcos icónicos como 
+        <strong>Marineford</strong>, <strong>Enies Lobby</strong> y la espectacular saga de <strong>Wano</strong>.
+      </div>
+      <div id="top-grid" class="grid"></div>
+    </section>
+
+    <section id="sec-timeline" class="reveal-section">
+      <div class="section-title">📈 La <span>Evolución</span> de una Era</div>
+      <div class="chart-desc">
+        Este gráfico es el pulso cardíaco de la serie. Observa las fluctuaciones causadas por el relleno (valles) y cómo la calidad de la animación 
+        se ha disparado en los últimos años (picos), alcanzando estándares cinematográficos.
+      </div>
+      <div class="chart-container">
+        <div id="timeline-chart"></div>
+      </div>
+    </section>
+
+    <section id="sec-ratings" class="reveal-section">
+      <div class="section-title">📊 Análisis de <span>Consistencia</span></div>
+      <div class="chart-desc">
+        Un desglose quirúrgico de la calidad. Cada <strong>"Lollipop"</strong> (paleta) representa un grupo de episodios con un rating exacto. 
+        <br><span style="color:var(--accent); font-size:14px;">Nota: La altura indica la <strong>CANTIDAD</strong> de episodios, no la calidad.</span>
+      </div>
+      
+      <div class="filters-bar">
+        <select id="rating-filter">
+          <option value="">Todos los ratings</option>
+          <option value="9">Solo Obras Maestras (9.0+)</option>
+          <option value="8">Excelentes (8.0+)</option>
+          <option value="7">Buenos (7.0+)</option>
+        </select>
+        <select id="year-filter"><option value="">Histórico Completo (Todos los años)</option></select>
+      </div>
+
+      <div class="chart-container">
+        <div id="rating-chart"></div>
+      </div>
+    </section>
+
+    <section id="sec-worst" class="reveal-section">
+      <div class="section-title">⚠️ Aguas <span>Turbulentas</span></div>
+      <div class="chart-desc">
+        Incluso el Rey de los Piratas tiene días malos. Estos son los episodios (generalmente relleno o recaps) que la comunidad ha penalizado 
+        por frenar el ritmo de la aventura.
+      </div>
+      <div id="worst-grid" class="grid"></div>
+    </section>
+
+    <section id="sec-explorer" class="reveal-section">
+      <div class="section-title">🔍 El <span>Log Pose</span></div>
+      <div class="chart-desc">
+        Tu brújula para navegar por la base de datos completa. Encuentra cualquier episodio específico por título o filtra por año de lanzamiento.
+      </div>
+      <div class="filters-bar">
+        <input id="search" placeholder="Buscar título (ej: Gear 5, Ace)..." style="min-width: 300px;">
+        <select id="explorer-year"><option value="">Año</option></select>
+      </div>
+      <div id="search-results" class="grid"></div>
+    </section>
+
+  </div>
+
+  <script>
+    /* =========================================
+       3. OBSERVADOR DE SCROLL (REPLAY)
+       ========================================= */
+    // Este objeto "vigila" qué elementos entran y salen de la pantalla
+    const observer = new IntersectionObserver((entries)=>{
+      entries.forEach(entry => {
+        // Si el elemento entra en pantalla...
+        if(entry.isIntersecting){
+          entry.target.classList.add('visible'); // ...le ponemos la clase para que aparezca
+        } else {
+          // Si sale de la pantalla...
+          entry.target.classList.remove('visible'); // ...le quitamos la clase para que se reinicie
+        }
+      });
+    }, { 
+      threshold: 0.1, // Se activa cuando se ve al menos un 10% del elemento
+      rootMargin: "0px 0px -50px 0px" // Un pequeño margen para suavizar
+    });
+
+    // Función auxiliar para observar nuevos elementos creados dinámicamente
+    function observeElement(el) {
+      if(el) observer.observe(el);
+    }
+
+    // --- UTILS ---
+    const tooltip = document.getElementById('tooltip');
+    function showTip(html, x, y) { 
+      tooltip.innerHTML = html; 
+      tooltip.style.left = (x + 15) + 'px'; 
+      tooltip.style.top = (y + 15) + 'px'; 
+      tooltip.style.display = 'block'; 
+    }
+    function hideTip(){ tooltip.style.display='none'; }
+    function esc(s){ return s == null ? '' : String(s); }
+    function scrollToId(id){ document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'}); }
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); }; }
+
+    // --- DATA LOADING ---
+    let DATA = { all:[], top:[], worst:[], years:[], stats:null };
+    
+    // Iniciamos la vigilancia de los elementos estáticos (Header, Títulos)
+    document.querySelectorAll('.reveal-section').forEach(el => observer.observe(el));
+
+    Promise.all([
+      fetch('all_episodes.json').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('top_episodes.json').then(r=>r.ok?r.json():[]).catch(()=>[]),
+      fetch('worst_episodes.json').then(r=>r.ok?r.json():[]).catch(()=>[]),
+      fetch('year_stats.json').then(r=>r.ok?r.json():[]).catch(()=>[]),
+      fetch('stats.json').then(r=>r.ok?r.json():null).catch(()=>null)
+    ]).then(([all,top,worst,years,stats])=>{
+      DATA.all = all||[]; DATA.top = top||[]; DATA.worst = worst||[]; DATA.years = years||[]; DATA.stats = stats;
+      
+      // Llenar estadísticas iniciales
+      document.getElementById('stat-total').textContent = DATA.stats?.totalEpisodes ?? DATA.all.length;
+      document.getElementById('stat-avg').textContent = DATA.stats?.averageRating ? Number(DATA.stats.averageRating).toFixed(2) : '-';
+      document.getElementById('stat-max').textContent = DATA.stats?.highestRated?.rating ?? '-';
+      document.getElementById('stat-range').textContent = DATA.stats?.yearsSpan || '-';
+
+      // Renderizar grids iniciales
+      renderGrid(DATA.top.slice(0,12), 'top-grid');
+      renderGrid(DATA.worst, 'worst-grid');
+      
+      populateFilters();
+
+      // Renderizar gráficos
+      renderRatingChart(DATA.all);
+      renderTimeline(DATA.years);
+      
+      // Event Listeners
+      document.getElementById('search').addEventListener('input', e=> renderSearch(e.target.value));
+      document.getElementById('explorer-year').addEventListener('change', ()=> renderSearch(document.getElementById('search').value));
+      document.getElementById('rating-filter').addEventListener('change', ()=> renderRatingChart(DATA.all));
+      document.getElementById('year-filter').addEventListener('change', ()=> renderRatingChart(DATA.all));
+
+      // Redibujar gráficos si cambia el tamaño de ventana
+      window.addEventListener('resize', debounce(()=>{ renderRatingChart(DATA.all); renderTimeline(DATA.years); }, 250));
+
+    }).catch(err => console.error(err));
+
+
+    // --- RENDERING ---
+    function renderGrid(list, containerId){ 
+      const g = document.getElementById(containerId); g.innerHTML = ''; 
+      list.forEach(ep=>{
+        const d = document.createElement('div'); d.className='card reveal-section';
+        const score = Number(ep.imdbRating ?? ep.rating ?? 0).toFixed(1);
+        d.innerHTML = `
+          <div class="ep-number">EPISODIO #${esc(ep.episode||ep.ep||'')}</div>
+          <div class="ep-title">${esc(ep.title||ep.episodeTitle)}</div>
+          <div class="ep-plot">${esc((ep.plot||ep.plotSummary||'').slice(0,160))}...</div>
+          <div class="badge-row"><div class="badge">⭐ ${score}</div></div>
+        `;
+        d.addEventListener('mousemove', ev=> showTip(`<strong>${esc(ep.title)}</strong><br>Rating: ${score}`, ev.clientX, ev.clientY));
+        d.addEventListener('mouseleave', hideTip);
+        g.appendChild(d);
+        observeElement(d); // IMPORTANTE: Observar inmediatamente al crear
+      });
+    }
+
+    // --- SEARCH RENDER ---
+    function renderSearch(q){ 
+      const out = document.getElementById('search-results'); out.innerHTML=''; 
+      q = (q||'').toLowerCase().trim(); 
+      const year = document.getElementById('explorer-year').value;
+      
+      if(!q && !year) return; 
+      
+      let results = DATA.all.filter(d=> { 
+        const text = ((d.title||'')+' '+(d.plot||'')+' '+(d.episodeTitle||'')).toLowerCase(); 
+        return (!q || text.includes(q)) && (!year || String(d.releaseYear||d.year||'')===String(year)); 
+      });
+
+      if(!results.length) { out.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666">No hay resultados.</div>'; return; }
+      
+      results.slice(0,24).forEach(ep=>{
+        const d = document.createElement('div'); d.className='card reveal-section';
+        const score = Number(ep.imdbRating || ep.rating || 0).toFixed(1);
+        const plotText = (ep.plot || ep.plotSummary || 'Sin descripción disponible.').slice(0, 140) + '...';
+
+        d.innerHTML = `
+          <div class="ep-number">EPISODIO #${esc(ep.episode)}</div>
+          <div class="ep-title">${esc(ep.title)}</div>
+          <div class="ep-plot">${esc(plotText)}</div>
+          <div class="badge-row"><div class="badge">⭐ ${score}</div></div>
+        `;
+        d.addEventListener('mousemove', ev=> showTip(`<strong>${esc(ep.title)}</strong><br>Rating: ${score}`, ev.clientX, ev.clientY));
+        d.addEventListener('mouseleave', hideTip);
+        out.appendChild(d);
+        observeElement(d); // IMPORTANTE: Observar inmediatamente
+      });
+    }
+
+    /* =========================================
+       4. GRÁFICO LOLLIPOP (Ratings)
+       ========================================= */
+    function renderRatingChart(all){ 
+      const node = document.getElementById('rating-chart'); 
+      node.innerHTML = ''; 
+      
+      if(!all || !all.length){ 
+        node.innerHTML = '<div style="color:var(--text-muted);display:flex;height:100%;align-items:center;justify-content:center;">Sin datos cargados</div>'; 
+        return; 
+      }
+
+      const yFilter = document.getElementById('year-filter').value;
+      const rFilter = +document.getElementById('rating-filter').value || 0;
+      
+      // Filtrado de datos
+      let data = all.filter(d => {
+        const epYear = String(d.releaseYear || d.year || '');
+        const epRating = Number(d.imdbRating || d.rating || 0);
+        return (!yFilter || epYear === yFilter) && (epRating >= rFilter);
+      });
+
+      if (data.length === 0) {
+         node.innerHTML = '<div style="color:var(--text-muted);display:flex;height:100%;align-items:center;justify-content:center;flex-direction:column;"><span style="font-size:24px;margin-bottom:10px;">∅</span>No hay episodios con estos filtros</div>';
+         return;
+      }
+      
+      // --- MATEMÁTICAS DEL GRÁFICO ---
+      // d3.rollup agrupa los datos: "Dime cuántos episodios (length) tienen cada rating exacto (d.rating)"
+      const counts = d3.rollup(data, v => v.length, d => {
+         const val = Number(d.imdbRating || d.rating || 0);
+         return isNaN(val) ? "0.0" : val.toFixed(1);
+      });
+      
+      // Convertimos los datos agrupados en una lista ordenada
+      let chartData = Array.from(counts, ([k,v]) => ({ rating: +k, count: v })).sort((a,b) => a.rating - b.rating);
+      const globalAvg = d3.mean(data, d => Number(d.imdbRating || d.rating || 0));
+
+      // Configuración de dimensiones
+      const margin = {top: 20, right: 30, bottom: 40, left: 60}; 
+      const w = node.clientWidth - margin.left - margin.right; 
+      const h = 450 - margin.top - margin.bottom;
+
+      const svg = d3.select(node).append('svg')
+        .attr('width', w + margin.left + margin.right)
+        .attr('height', h + margin.top + margin.bottom)
+        .append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+      
+      // --- ESCALAS (Traducción de Datos a Píxeles) ---
+      // X = Rating, Y = Cantidad
+      const xMin = Math.max(0, rFilter - 0.5); 
+      const x = d3.scaleLinear().domain([xMin, 10]).range([0, w]);
+      const yMax = d3.max(chartData, d => d.count) || 1; 
+      const y = d3.scaleLinear().domain([0, yMax * 1.1]).range([h, 0]);
+
+      svg.append("g").attr("class", "grid").call(d3.axisLeft(y).tickSize(-w).ticks(5)).selectAll("line").attr("class", "grid-line").style("stroke-opacity", 0.1);
+      svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h})`).call(d3.axisBottom(x).ticks(10));
+
+      // Etiqueta del Eje Y
+      svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -45) 
+        .attr("x", -(h/2))
+        .style("text-anchor", "middle")
+        .style("fill", "var(--text-muted)")
+        .style("font-size", "11px")
+        .style("font-weight", "600")
+        .style("letter-spacing", "1px")
+        .text("CANTIDAD DE EPISODIOS");
+
+      // Gradiente de los círculos
+      const defs = svg.append('defs');
+      const grad = defs.append('linearGradient').attr('id', 'popGradFixed')
+         .attr('x1', '0%').attr('y1', '0%').attr('x2', '100%').attr('y2', '100%');
+      grad.append('stop').attr('offset', '0%').attr('stop-color', '#fff');
+      grad.append('stop').attr('offset', '50%').attr('stop-color', '#ff9e1b');
+      grad.append('stop').attr('offset', '100%').attr('stop-color', '#ff5e00');
+
+      const group = svg.selectAll('g.lolly').data(chartData).enter().append('g').attr("class", "lolly");
+      
+      // DIBUJO DE LÍNEAS
+      group.append("line")
+        .attr("x1", d => x(d.rating)).attr("x2", d => x(d.rating))
+        .attr("y1", h).attr("y2", h)
+        .attr("stroke", "var(--accent)").attr("stroke-width", 2).style("opacity", 0.6)
+        .transition().duration(800).ease(d3.easeCubicOut).attr("y2", d => y(d.count));
+
+      // DIBUJO DE CÍRCULOS
+      group.append("circle")
+        .attr("cx", d => x(d.rating)).attr("cy", h).attr("r", 6)
+        .style("fill", "url(#popGradFixed)")
+        .style("stroke", "rgba(255, 158, 27, 0.4)").style("stroke-width", "3px").style("cursor", "pointer")
+        .on("mousemove", (ev, d) => {
+             d3.select(ev.currentTarget).transition().attr("r", 9).style("stroke", "#fff");
+             showTip(`<div style="text-align:center"><div style="font-size:16px;font-weight:900;color:var(--accent)">★ ${d.rating.toFixed(1)}</div><div style="color:#ccc;font-size:11px;margin-bottom:4px">Rating Exacto</div><div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:4px"><strong>${d.count}</strong> Episodios</div></div>`, ev.clientX, ev.clientY);
+        })
+        .on("mouseout", function() {
+             d3.select(this).transition().attr("r", 6).style("stroke", "rgba(255, 158, 27, 0.4)");
+             hideTip();
+        })
+        .transition().duration(800).delay((d, i) => i * 15).ease(d3.easeElasticOut).attr("cy", d => y(d.count));
+        
+      if (globalAvg && !isNaN(globalAvg)) {
+        const ax = x(globalAvg);
+        const avgGroup = svg.append("g");
+        avgGroup.append("line").attr("x1", ax).attr("x2", ax).attr("y1", h).attr("y2", 0).style("stroke", "#fff").style("stroke-dasharray", "4 4").style("opacity", 0.5);
+        avgGroup.append("text").attr("x", ax + 5).attr("y", 15).text(`PROMEDIO: ${globalAvg.toFixed(2)}`).style("fill", "#fff").style("font-size", "10px").style("font-weight", "bold");
+      }
+    }
+
+    /* =========================================
+       5. GRÁFICO TIMELINE (Area + Linea)
+       ========================================= */
+    function renderTimeline(years){
+      const node = document.getElementById('timeline-chart'); node.innerHTML='';
+      if(!years.length) return;
+      
+      const data = years.map(d=>({year:+d.year, avg:+d.avgRating})).sort((a,b)=>a.year-b.year);
+      const margin={top:20,right:30,bottom:30,left:40}; 
+      const w = node.clientWidth - margin.left - margin.right; 
+      const h = 450 - margin.top - margin.bottom;
+
+      const svg = d3.select(node).append('svg').attr('width',w+margin.left+margin.right).attr('height',h+margin.top+margin.bottom).append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+
+      const x = d3.scaleLinear().domain(d3.extent(data,d=>d.year)).range([0,w]);
+      const y = d3.scaleLinear().domain([d3.min(data,d=>d.avg)-0.5, d3.max(data,d=>d.avg)+0.5]).range([h,0]);
+
+      const defs = svg.append("defs");
+      const grad = defs.append("linearGradient").attr("id","ag").attr("x1","0%").attr("y1","0%").attr("x2","0%").attr("y2","100%");
+      grad.append("stop").attr("offset","0%").attr("stop-color","#ff9e1b").attr("stop-opacity",0.3);
+      grad.append("stop").attr("offset","100%").attr("stop-color","#ff9e1b").attr("stop-opacity",0);
+
+      svg.append("g").call(d3.axisLeft(y).tickSize(-w).ticks(6)).attr("class","axis").selectAll("line").attr("class","grid-line");
+      svg.append("g").attr("transform",`translate(0,${h})`).call(d3.axisBottom(x).ticks(6).tickFormat(d3.format("d"))).attr("class","axis");
+
+      const area = d3.area().x(d=>x(d.year)).y0(h).y1(d=>y(d.avg)).curve(d3.curveMonotoneX);
+      svg.append("path").datum(data).attr("d",area).attr("fill","url(#ag)");
+      
+      const line = d3.line().x(d=>x(d.year)).y(d=>y(d.avg)).curve(d3.curveMonotoneX);
+      const path = svg.append("path").datum(data).attr("d",line).attr("fill","none").attr("stroke","#ff9e1b").attr("stroke-width",3);
+      
+      const len = path.node().getTotalLength();
+      path.attr("stroke-dasharray", len).attr("stroke-dashoffset", len).transition().duration(2000).ease(d3.easeCubicOut).attr("stroke-dashoffset", 0);
+
+      const focus = svg.append("g").style("display","none");
+      focus.append("line").attr("y1",0).attr("y2",h).style("stroke","#fff").style("stroke-dasharray","3 3").style("opacity",0.5);
+      focus.append("circle").attr("r",6).style("fill","#050b14").style("stroke","var(--accent)").style("stroke-width",2);
+
+      svg.append("rect").attr("width",w).attr("height",h).style("fill","transparent")
+        .on("mouseover", ()=>focus.style("display",null))
+        .on("mouseout", ()=>{ focus.style("display","none"); hideTip(); })
+        .on("mousemove", function(ev){
+          const x0 = x.invert(d3.pointer(ev)[0]);
+          const i = d3.bisector(d=>d.year).center(data, x0, 1);
+          const d = data[i];
+          focus.attr("transform", `translate(${x(d.year)},${y(d.avg)})`);
+          showTip(`<strong>${d.year}</strong><br>Promedio: ${d.avg.toFixed(2)}`, ev.clientX, ev.clientY);
+        });
+    }
+
+    // --- UTILS & INIT ---
+    function populateFilters(){ 
+      const years = Array.from(new Set(DATA.all.map(d=>d.releaseYear||d.year).filter(Boolean))).map(Number).sort((a,b)=>a-b);
+      const yf = document.getElementById('year-filter');
+      const ef = document.getElementById('explorer-year');
+      years.forEach(y=>{ 
+        yf.appendChild(new Option(y,y)); 
+        ef.appendChild(new Option(y,y)); 
+      }); 
+    }
+  </script>
+</body>
+</html>
