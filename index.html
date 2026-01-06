@@ -16,7 +16,6 @@
       --text-muted: #94a6b8;
       --accent: #ff9e1b;
       --accent-glow: rgba(255, 158, 27, 0.6);
-      /* Color de las tarjetas (Cristal Oscuro) */
       --glass-bg: rgba(16, 24, 35, 0.75);
       --glass-border: 1px solid rgba(255, 255, 255, 0.08);
       --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
@@ -61,11 +60,9 @@
       padding: 180px 20px 140px; 
       margin-bottom: 60px;
       
-      /* CAMBIO AQUÍ: Eliminé el linear-gradient negro. Solo queda la imagen pura. */
       background: url('img/header-onepiece.jpg') no-repeat center center;
-      
       background-size: cover;
-      background-attachment: fixed; /* Mantiene el efecto Parallax */
+      background-attachment: fixed; /* Parallax en Desktop */
       
       border-radius: 0 0 50px 50px;
       box-shadow: 0 20px 70px rgba(0,0,0,0.6);
@@ -81,7 +78,6 @@
       letter-spacing: 4px;
       margin: 0;
       text-transform: uppercase;
-      /* Sombra fuerte para que el texto se lea aunque la imagen sea clara */
       text-shadow: 0 0 40px var(--accent-glow), 0 4px 15px rgba(0,0,0,0.9);
       line-height: 1;
       position: relative;
@@ -93,7 +89,6 @@
       font-size: 22px;
       margin-top: 15px;
       font-weight: 500;
-      /* Sombra fuerte para legibilidad */
       text-shadow: 0 2px 10px rgba(0,0,0,1);
       position: relative;
       z-index: 2;
@@ -164,16 +159,53 @@
     .grid-line { stroke: rgba(255,255,255,0.05); }
     .tooltip { position: fixed; display: none; padding: 15px; background: rgba(10,15,25,0.95); border: 1px solid var(--accent); border-radius: 12px; color: #fff; font-size: 13px; z-index: 9999; box-shadow: 0 10px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px); pointer-events: none; }
 
-    /* RESPONSIVIDAD */
+    /* =========================================
+       3. MEDIA QUERIES (CORRECCIÓN RESPONSIVA)
+       ========================================= */
+    @media (max-width: 1024px) {
+      .brand { font-size: 60px; } 
+      .section-title { font-size: 32px; }
+    }
+
     @media (max-width: 768px) {
+      /* Ajuste general del contenedor */
       .wrap { padding: 0 16px 40px; }
-      header { padding: 120px 15px 80px; border-radius: 0 0 30px 30px; }
-      .brand { font-size: 42px; } .sub { font-size: 16px; }
-      .nav-container { justify-content: flex-start; overflow-x: auto; margin: 0 -16px 40px; padding: 0 16px; } .pills { padding: 8px; }
-      .stats { grid-template-columns: 1fr 1fr; gap: 15px; } .stat { padding: 20px; } .stat .v { font-size: 32px; }
-      .grid { grid-template-columns: 1fr; }
-      #rating-chart, #timeline-chart { height: 350px; } .chart-container { padding: 20px; min-height: 350px; }
-      .filters-bar { flex-direction: column; } select, input { width: 100%; }
+      
+      /* Ajuste del Header para móvil */
+      header { 
+        padding: 100px 15px 60px; 
+        border-radius: 0 0 25px 25px; 
+        background-attachment: scroll; /* IMPORTANTE: Evita saltos en móvil */
+        background-position: center top;
+      }
+      .brand { font-size: 42px; letter-spacing: 2px; } 
+      .sub { font-size: 16px; margin-top: 10px; }
+      
+      /* Navegación */
+      .nav-container { justify-content: flex-start; overflow-x: auto; margin: 0 -16px 40px; padding: 0 16px; } 
+      .pills { padding: 8px; border-radius: 12px; }
+      
+      /* Stats en 2 columnas */
+      .stats { grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 50px; } 
+      .stat { padding: 15px; } 
+      .stat .v { font-size: 28px; }
+      .stat .label { font-size: 10px; }
+      
+      /* Grids de una sola columna */
+      .grid { grid-template-columns: 1fr; gap: 20px; }
+      
+      /* Gráficos ajustados */
+      #rating-chart, #timeline-chart { height: 350px; } 
+      .chart-container { padding: 15px; min-height: 350px; border-radius: 16px; }
+      
+      /* Filtros en columna */
+      .filters-bar { flex-direction: column; width: 100%; gap: 10px; } 
+      select, input { width: 100%; min-width: 0; }
+      
+      /* Ajuste de Secciones */
+      section { margin-bottom: 80px; scroll-margin-top: 80px; }
+      .section-title { font-size: 28px; flex-direction: column; gap: 8px; }
+      .chart-desc { font-size: 15px; padding: 15px; }
     }
   </style>
 </head>
